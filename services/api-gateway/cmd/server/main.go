@@ -97,10 +97,8 @@ func main() {
 
 	// ✅ IMPORTANT: use trailing slash for proper routing
 	mux.Handle("/api/v1/users/", authProxy)
-	
-	mux.Handle("/api/v1/posts", postProxy)
-	mux.Handle("/api/v1/posts/", postProxy)
-	mux.Handle("/api/v1/ai/", aiProxy)
+mux.Handle("/api/v1/posts/", postProxy)
+mux.Handle("/api/v1/ai/", aiProxy)
 
 	// health route
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
