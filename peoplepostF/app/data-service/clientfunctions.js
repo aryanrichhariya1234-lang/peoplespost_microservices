@@ -3,7 +3,7 @@
 import toast from "react-hot-toast";
 
 // 🔥 USE ENV (IMPORTANT)
-const BASE_URL = "http://localhost:4000/api/v1/posts";
+const BASE_URL = "http://localhost:4000/api/v1";
 
 // ================== AUTH ==================
 
