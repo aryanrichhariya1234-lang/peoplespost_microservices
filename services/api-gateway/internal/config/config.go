@@ -20,9 +20,9 @@ func LoadEnv() {
 	_ = godotenv.Load()
 	
 
-	AUTH_SERVICE_URL = getEnv("AUTH_SERVICE_URL", "http://auth:6000")
-	POST_SERVICE_URL = getEnv("POST_SERVICE_URL", "http://posts:5000")
-	AI_SERVICE_URL   = getEnv("AI_SERVICE_URL", "http://ai:4001")
+	AUTH_SERVICE_URL = getEnv("AUTH_SERVICE_URL", "http://auth-service:6000")
+	POST_SERVICE_URL = getEnv("POST_SERVICE_URL", "http://post-service:5000")
+	AI_SERVICE_URL   = getEnv("AI_SERVICE_URL", "http://ai-service:4001")
 	PORT             = getEnv("PORT", "4000")
 
 	log.Println("Config Loaded:")

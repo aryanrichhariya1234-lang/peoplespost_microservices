@@ -97,6 +97,7 @@ func main() {
 
 	// ✅ IMPORTANT: use trailing slash for proper routing
 	mux.Handle("/api/v1/users/", authProxy)
+	mux.Handle("/api/v1/posts", postProxy)
 mux.Handle("/api/v1/posts/", postProxy)
 mux.Handle("/api/v1/ai/", aiProxy)
 
