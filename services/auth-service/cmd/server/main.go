@@ -18,7 +18,7 @@ func main() {
 
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "4000"
+		port = "6000"
 	}
 
 	log.Println("Auth service running on port", port)
