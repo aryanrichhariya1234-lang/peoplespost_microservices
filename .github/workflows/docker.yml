@@ -19,7 +19,7 @@ jobs:
         with:
           go-version: "1.26.2"
 
-      # 3. Run backend test
+      # 3. Run backend tes
       - name: Run post-service tests
         working-directory: ./services/post-service
         run: go test ./...
