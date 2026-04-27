@@ -1,0 +1,53 @@
+version: "3.9"
+
+services:
+  # ================= users =================
+  auth-service:
+    build: ./services/auth-service
+    container_name: users
+    ports:
+      - "6000:6000"
+    env_file:
+      - ./services/auth-service/.env
+
+  # ================= POSTS =================
+  post-service:
+    build: ./services/post-service
+    container_name: posts
+    ports:
+      - "5000:5000"
+    env_file:
+      - ./services/post-service/.env
+
+  # ================= AI =================
+  ai-service:
+    build: ./services/ai-service
+    container_name: ai
+    ports:
+      - "4001:4001"
+    env_file:
+      - ./services/ai-service/.env
+
+  # ================= API GATEWAY =================
+  api-gateway:
+    build: ./services/api-gateway
+    container_name: gateway
+    ports:
+      - "4000:4000"
+    env_file:
+      - ./services/api-gateway/.env
+    depends_on:
+      - auth-service
+      - post-service
+      - ai-service
+
+  # ================= FRONTEND =================
+  frontend:
+    build: ./peoplepostF
+    container_name: frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://gateway:4000/api/v1
+    depends_on:
+      - api-gateway
