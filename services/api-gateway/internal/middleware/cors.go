@@ -1,6 +1,9 @@
 package middleware
 
-import "net/http"
+import (
+	"log"
+	"net/http"
+)
 
 func CORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -8,22 +11,33 @@ func CORS(next http.Handler) http.Handler {
 		origin := r.Header.Get("Origin")
 
 		allowedOrigins := map[string]bool{
-			"http://localhost:3000": true,
+			// 🔧 Local dev
+			"http://localhost:3000":  true,
 			"http://127.0.0.1:3000": true,
+
+			// 🔥 Production (UPDATE THESE)
+			"https://yourapp.vercel.app": true,
+			"http://<your-ec2-ip>:3000":  true,
+			"https://app.yoursite.com":   true,
 		}
 
-		// Important for proxies/caching
 		w.Header().Set("Vary", "Origin")
 
 		if allowedOrigins[origin] {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
+		} else if origin != "" {
+			log.Println("❌ CORS blocked origin:", origin)
 		}
 
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers",
+			"Content-Type, Authorization, X-Requested-With, Accept")
 
-		// Preflight
+		w.Header().Set("Access-Control-Allow-Methods",
+			"GET, POST, PATCH, DELETE, OPTIONS")
+
+		w.Header().Set("Access-Control-Expose-Headers", "Authorization")
+
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)
 			return

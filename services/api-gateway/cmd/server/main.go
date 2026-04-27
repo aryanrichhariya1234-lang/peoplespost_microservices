@@ -1,35 +1,91 @@
 package main
 
 import (
+	"api-gateway/internal/config"
+	"api-gateway/internal/middleware"
 	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"strings"
 )
 
-// ================= PROXY =================
-func newProxy(target string) *httputil.ReverseProxy {
-	u, _ := url.Parse(target)
-	return httputil.NewSingleHostReverseProxy(u)
-}
 
-// ================= CORS =================
-func cors(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET,POST,PATCH,DELETE")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type,Authorization")
+// ================= COOKIE HELPERS =================
 
-		if r.Method == http.MethodOptions {
-			return
+// remove specific attribute from Set-Cookie
+func removeAttr(cookie, attr string) string {
+	parts := strings.Split(cookie, ";")
+	var result []string
+
+	for _, p := range parts {
+		if !strings.HasPrefix(strings.TrimSpace(strings.ToLower(p)), strings.ToLower(attr)) {
+			result = append(result, p)
 		}
+	}
 
-		next.ServeHTTP(w, r)
-	})
+	return strings.Join(result, ";")
 }
+
+
+// ================= PROXY =================
+
+func newProxy(target string) *httputil.ReverseProxy {
+	u, err := url.Parse(target)
+	if err != nil {
+		log.Fatal("Invalid proxy target:", target)
+	}
+
+	proxy := httputil.NewSingleHostReverseProxy(u)
+
+	// 🔥 Fix cookies here
+	proxy.ModifyResponse = func(res *http.Response) error {
+		cookies := res.Header["Set-Cookie"]
+	
+		for i, c := range cookies {
+	
+			// remove domain only in dev
+			if os.Getenv("ENV") == "development" {
+				c = removeAttr(c, "Domain")
+				c = removeAttr(c, "Secure")
+			}
+	
+			// set proper SameSite
+			if !strings.Contains(strings.ToLower(c), "samesite") {
+				if os.Getenv("ENV") == "production" {
+					c += "; SameSite=None; Secure"
+				} else {
+					c += "; SameSite=Lax"
+				}
+			}
+	
+			cookies[i] = c
+		}
+	
+		if len(cookies) > 0 {
+			res.Header["Set-Cookie"] = cookies
+		}
+	
+		return nil
+	}
+
+	// optional: better error logging
+	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
+		log.Println("Proxy error:", err)
+		w.WriteHeader(http.StatusBadGateway)
+		w.Write([]byte("Bad Gateway"))
+	}
+
+	return proxy
+}
+
+
+// ================= MAIN =================
 
 func main() {
+	config.LoadEnv()
+
 	authURL := os.Getenv("AUTH_SERVICE_URL")
 	postURL := os.Getenv("POST_SERVICE_URL")
 	aiURL := os.Getenv("AI_SERVICE_URL")
@@ -40,16 +96,27 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	// routes
-	mux.Handle("/api/v1/auth", authProxy)
+	// ✅ IMPORTANT: use trailing slash for proper routing
+	mux.Handle("/api/v1/users/", authProxy)
+	
 	mux.Handle("/api/v1/posts", postProxy)
-	mux.Handle("/api/v1/posts/", postProxy)
-	mux.Handle("/api/v1/ai", aiProxy)
+	mux.Handle("/api/v1/ai/", aiProxy)
 
+	// health route
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"status":"gateway running"}`))
 	})
 
-	log.Println("Gateway running on port 4000")
-	http.ListenAndServe(":4000", cors(mux))
+	port := config.PORT
+	if port == "" {
+		port = "4000"
+	}
+
+	log.Println("Gateway running on port", port)
+
+	err := http.ListenAndServe(":"+port, middleware.CORS(mux))
+	if err != nil {
+		log.Fatal("Server failed:", err)
+	}
 }
