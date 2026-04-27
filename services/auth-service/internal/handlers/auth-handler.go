@@ -396,8 +396,8 @@ func setTokenCookie(w http.ResponseWriter, token string) {
 		Name:     "token",
 		Value:    token,
 		HttpOnly: true,
-		Secure:   false, // true in production (HTTPS)
-
+		Secure:   false, // 🔥 for now
+		SameSite: http.SameSiteLaxMode,
 		Path:     "/",
 	})
 }
