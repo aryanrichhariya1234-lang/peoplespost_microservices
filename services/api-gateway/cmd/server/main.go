@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"os"
 
 	"api-gateway/internal/config"
 	"api-gateway/internal/middleware"
@@ -20,7 +19,7 @@ func newProxy(target string) *httputil.ReverseProxy {
 
 	proxy := httputil.NewSingleHostReverseProxy(u)
 
-	// 🔥 IMPORTANT: remove downstream CORS headers
+	// 🔥 Remove downstream CORS headers
 	proxy.ModifyResponse = func(resp *http.Response) error {
 		resp.Header.Del("Access-Control-Allow-Origin")
 		resp.Header.Del("Access-Control-Allow-Credentials")
@@ -35,16 +34,13 @@ func newProxy(target string) *httputil.ReverseProxy {
 func main() {
 	config.LoadEnv()
 
-	authURL := os.Getenv("AUTH_SERVICE_URL")
-	postURL := os.Getenv("POST_SERVICE_URL")
-	aiURL := os.Getenv("AI_SERVICE_URL")
-
-	authProxy := newProxy(authURL)
-	postProxy := newProxy(postURL)
-	aiProxy := newProxy(aiURL)
+	authProxy := newProxy(config.AUTH_SERVICE_URL)
+	postProxy := newProxy(config.POST_SERVICE_URL)
+	aiProxy := newProxy(config.AI_SERVICE_URL)
 
 	mux := http.NewServeMux()
 
+	// Routes
 	mux.Handle("/api/v1/users/", authProxy)
 	mux.Handle("/api/v1/posts", postProxy)
 	mux.Handle("/api/v1/posts/", postProxy)
@@ -54,8 +50,8 @@ func main() {
 		w.Write([]byte(`{"status":"gateway running"}`))
 	})
 
-	log.Println("Gateway running on port 4000")
+	log.Println("Gateway running on port", config.PORT)
 
-	// ✅ ONLY THIS CORS
-	log.Fatal(http.ListenAndServe(":4000", middleware.CORS(mux)))
+	// ✅ Use ENV port
+	log.Fatal(http.ListenAndServe(":"+config.PORT, middleware.CORS(mux)))
 }
