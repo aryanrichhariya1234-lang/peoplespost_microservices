@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
-	"os"
+	
 
 	"auth-service/internal/config"
 	"auth-service/internal/routes"
@@ -16,7 +16,7 @@ func main() {
 
 	router := routes.SetupRouter()
 
-	port ="6000"
+	port :="6000"
 
 	log.Println("Auth service running on port", port)
 	log.Fatal(http.ListenAndServe(":"+port, router))
