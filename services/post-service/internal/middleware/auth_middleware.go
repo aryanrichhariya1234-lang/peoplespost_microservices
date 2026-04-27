@@ -14,7 +14,7 @@ import (
 // optional: define a custom type to avoid context key collisions
 type contextKey string
 
-const userIDKey contextKey = "userID"
+const UserIDKey contextKey = "userID"
 
 func Protect(next http.HandlerFunc) http.HandlerFunc {
 return func(w http.ResponseWriter, r *http.Request) {
@@ -69,7 +69,7 @@ var tokenStr string
 	}
 
 	// 6. Add to context
-	ctx := context.WithValue(r.Context(), userIDKey, userID)
+	ctx := context.WithValue(r.Context(), UserIDKey, userID)
 
 	// 7. Continue
 	next(w, r.WithContext(ctx))
@@ -80,6 +80,6 @@ var tokenStr string
 
 // Helper to get userID safely in handlers
 func GetUserID(r *http.Request) (string, bool) {
-id, ok := r.Context().Value(userIDKey).(string)
+id, ok := r.Context().Value(UserIDKey).(string)
 return id, ok
 }
