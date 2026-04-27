@@ -3,7 +3,7 @@
 import toast from "react-hot-toast";
 
 // 🔥 USE ENV (IMPORTANT)
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+const BASE_URL = "http://api-gateway:4000/api/v1";
 
 // ================== AUTH ==================
 
