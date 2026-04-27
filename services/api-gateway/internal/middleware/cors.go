@@ -16,8 +16,8 @@ func CORS(next http.Handler) http.Handler {
 			"http://127.0.0.1:3000": true,
 
 			// 🔥 Production (UPDATE THESE)
-			"https://yourapp.vercel.app": true,
-			"http://<your-ec2-ip>:3000":  true,
+			"https://peoplespost.vercel.app/": true,
+			"http://100.30.218.48:3000":  true,
 			"https://app.yoursite.com":   true,
 		}
 
