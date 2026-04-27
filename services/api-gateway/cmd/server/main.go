@@ -85,10 +85,9 @@ func newProxy(target string) *httputil.ReverseProxy {
 
 func main() {
 	config.LoadEnv()
-
-	authURL := os.Getenv("AUTH_SERVICE_URL")
-	postURL := os.Getenv("POST_SERVICE_URL")
-	aiURL := os.Getenv("AI_SERVICE_URL")
+	authURL := config.AUTH_SERVICE_URL
+	postURL := config.POST_SERVICE_URL
+	aiURL := config.AI_SERVICE_URL
 
 	authProxy := newProxy(authURL)
 	postProxy := newProxy(postURL)
@@ -100,6 +99,7 @@ func main() {
 	mux.Handle("/api/v1/users/", authProxy)
 	
 	mux.Handle("/api/v1/posts", postProxy)
+	mux.Handle("/api/v1/posts/", postProxy)
 	mux.Handle("/api/v1/ai/", aiProxy)
 
 	// health route

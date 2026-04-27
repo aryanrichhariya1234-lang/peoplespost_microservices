@@ -18,8 +18,9 @@ var (
 func LoadEnv() {
 	// load .env file (ignore error if not present)
 	_ = godotenv.Load()
+	
 
-	AUTH_SERVICE_URL = getEnv("AUTH_SERVICE_URL", "http://users:6000")
+	AUTH_SERVICE_URL = getEnv("AUTH_SERVICE_URL", "http://auth:6000")
 	POST_SERVICE_URL = getEnv("POST_SERVICE_URL", "http://posts:5000")
 	AI_SERVICE_URL   = getEnv("AI_SERVICE_URL", "http://ai:4001")
 	PORT             = getEnv("PORT", "4000")
