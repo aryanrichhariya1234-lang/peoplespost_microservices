@@ -8,7 +8,6 @@ import (
 	"os"
 	"time"
 
-	
 	"ai-service/internal/config"
 	"ai-service/pkg/utils"
 )
@@ -20,11 +19,11 @@ func GetDashboardInsights(w http.ResponseWriter, r *http.Request) {
 	// ✅ 2. Call Post Service (analytics endpoint)
 	client := &http.Client{Timeout: 5 * time.Second}
 
-	resp, err := client.Get(config.POST_SERVICE_URL + "/posts/analytics")
+	resp, err := client.Get(config.POST_SERVICE_URL + "/api/v1/posts/analytics")
 
 	if err != nil {
 		utils.JSON(w, http.StatusInternalServerError, map[string]interface{}{
-			"status": "error",
+			"status":  "error",
 			"message": "Failed to fetch analytics from post service",
 		})
 		return
@@ -35,7 +34,7 @@ func GetDashboardInsights(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewDecoder(resp.Body).Decode(&analyticsResp); err != nil {
 		utils.JSON(w, http.StatusInternalServerError, map[string]interface{}{
-			"status": "error",
+			"status":  "error",
 			"message": "Invalid analytics response",
 		})
 		return
@@ -44,7 +43,7 @@ func GetDashboardInsights(w http.ResponseWriter, r *http.Request) {
 	data, ok := analyticsResp["data"].(map[string]interface{})
 	if !ok {
 		utils.JSON(w, http.StatusInternalServerError, map[string]interface{}{
-			"status": "error",
+			"status":  "error",
 			"message": "Malformed analytics data",
 		})
 		return
@@ -104,9 +103,12 @@ Priority: %s
 	// ✅ 6. Call Gemini
 	insights := "AI unavailable"
 
-	responseText, err := callGemini(prompt)
+	responseText, err := callAI(prompt)
 	if err == nil && responseText != "" {
 		insights = responseText
+	}
+	if err != nil {
+		fmt.Println(err)
 	}
 
 	// ✅ 7. Final response
@@ -121,27 +123,31 @@ Priority: %s
 		},
 	}
 
-
-
 	utils.JSON(w, http.StatusOK, result)
 }
 
 // ================= GEMINI CALL =================
-func callGemini(prompt string) (string, error) {
-	apiKey := os.Getenv("GEMINI_API_KEY")
+func callAI(prompt string) (string, error) {
+	apiKey := os.Getenv("OPENROUTER_API_KEY")
 
 	if apiKey == "" {
-		return "", fmt.Errorf("missing GEMINI_API_KEY")
+		return "", fmt.Errorf("missing OPENROUTER_API_KEY")
 	}
 
 	reqBody := map[string]interface{}{
-		"contents": []map[string]interface{}{
+		"model": "openai/gpt-4o-mini",
+		"messages": []map[string]string{
 			{
-				"parts": []map[string]string{
-					{"text": prompt},
-				},
+				"role":    "system",
+				"content": "You are a smart city decision intelligence system. Analyze city reports and provide concise actionable insights.",
+			},
+			{
+				"role":    "user",
+				"content": prompt,
 			},
 		},
+		"temperature": 0.3,
+		"max_tokens":  800,
 	}
 
 	body, err := json.Marshal(reqBody)
@@ -151,16 +157,23 @@ func callGemini(prompt string) (string, error) {
 
 	req, err := http.NewRequest(
 		"POST",
-		"https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash:generateContent?key="+apiKey,
+		"https://openrouter.ai/api/v1/chat/completions",
 		bytes.NewBuffer(body),
 	)
 	if err != nil {
 		return "", err
 	}
 
+	req.Header.Set("Authorization", "Bearer "+apiKey)
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{Timeout: 8 * time.Second}
+	// Optional but recommended
+	req.Header.Set("HTTP-Referer", "http://localhost")
+	req.Header.Set("X-Title", "Smart City AI Service")
+
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+	}
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -169,17 +182,30 @@ func callGemini(prompt string) (string, error) {
 	defer resp.Body.Close()
 
 	var result map[string]interface{}
+
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return "", err
 	}
 
-	candidates, ok := result["candidates"].([]interface{})
-	if !ok || len(candidates) == 0 {
-		return "", fmt.Errorf("no candidates returned")
+	// Debug if needed
+	if errObj, ok := result["error"]; ok {
+		b, _ := json.Marshal(errObj)
+		return "", fmt.Errorf("openrouter error: %s", string(b))
 	}
 
-	content := candidates[0].(map[string]interface{})["content"].(map[string]interface{})
-	parts := content["parts"].([]interface{})
+	choices, ok := result["choices"].([]interface{})
+	if !ok || len(choices) == 0 {
+		b, _ := json.Marshal(result)
+		return "", fmt.Errorf("no choices returned: %s", string(b))
+	}
 
-	return parts[0].(map[string]interface{})["text"].(string), nil
+	choice := choices[0].(map[string]interface{})
+	message := choice["message"].(map[string]interface{})
+
+	content, ok := message["content"].(string)
+	if !ok {
+		return "", fmt.Errorf("invalid response format")
+	}
+
+	return content, nil
 }

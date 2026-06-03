@@ -8,12 +8,11 @@ func CORS(next http.Handler) http.Handler {
 		origin := r.Header.Get("Origin")
 
 		allowedOrigins := map[string]bool{
-			"http://localhost:3000":        true,
-			"http://localhost:3001":        true,
+			"http://localhost:3000":          true,
+			"http://localhost:3001":          true,
 			"https://peoplespost.vercel.app": true,
 
-			
-			"http://<your-ec2-ip>":  true,
+			"http://<your-ec2-ip>":      true,
 			"http://<your-ec2-ip>:3000": true,
 			"http://<your-ec2-ip>:5173": true,
 		}

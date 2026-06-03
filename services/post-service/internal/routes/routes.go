@@ -16,7 +16,6 @@ func SetupRouter() http.Handler {
 		w.Write([]byte(`{"status":"success","message":"API running"}`))
 	})
 
-	
 	// ================= POSTS (RESTFUL) =================
 
 	// GET all posts + CREATE post
@@ -32,7 +31,14 @@ func SetupRouter() http.Handler {
 			http.NotFound(w, r)
 		}
 	})
+	mux.HandleFunc("/api/v1/posts/analytics", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			handlers.GetPostAnalytics(w, r)
+			return
+		}
 
+		http.NotFound(w, r)
+	})
 	// UPDATE / DELETE / LIKE (with ID)
 	mux.HandleFunc("/api/v1/posts/", func(w http.ResponseWriter, r *http.Request) {
 		path := strings.TrimPrefix(r.URL.Path, "/api/v1/posts/")

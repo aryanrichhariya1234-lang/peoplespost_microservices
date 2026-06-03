@@ -7,10 +7,10 @@ import (
 )
 
 type AppError struct {
-	StatusCode  int    `json:"-"`
-	Message     string `json:"message"`
-	Status      string `json:"status"`
-	IsOperational bool `json:"-"`
+	StatusCode    int    `json:"-"`
+	Message       string `json:"message"`
+	Status        string `json:"status"`
+	IsOperational bool   `json:"-"`
 }
 
 func (e *AppError) Error() string {
@@ -23,9 +23,9 @@ func NewError(statusCode int, message string) *AppError {
 		status = "fail"
 	}
 	return &AppError{
-		StatusCode:  statusCode,
-		Message:     message,
-		Status:      status,
+		StatusCode:    statusCode,
+		Message:       message,
+		Status:        status,
 		IsOperational: true,
 	}
 }

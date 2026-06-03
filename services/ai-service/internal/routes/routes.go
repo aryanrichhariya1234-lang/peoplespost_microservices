@@ -3,7 +3,6 @@ package routes
 import (
 	"net/http"
 
-
 	"ai-service/internal/handlers"
 	"ai-service/internal/middleware"
 )
@@ -17,10 +16,6 @@ func SetupRouter() http.Handler {
 	})
 
 	mux.HandleFunc("/api/v1/ai/insights", middleware.Protect(handlers.GetDashboardInsights))
-
-
-
-
 
 	// ================= CORS =================
 	return mux

@@ -1,38 +1,38 @@
 package handlers
 
 import (
-"context"
-"encoding/json"
-"net/http"
-"strings"
-"time"
+	"context"
+	"encoding/json"
+	"net/http"
+	"strings"
+	"time"
 
-"fmt"
-"mime/multipart"
+	"fmt"
+	"mime/multipart"
 
-"github.com/cloudinary/cloudinary-go/v2/api/uploader"
-"go.mongodb.org/mongo-driver/bson"
-"go.mongodb.org/mongo-driver/bson/primitive"
-"go.mongodb.org/mongo-driver/mongo/options"
+	"github.com/cloudinary/cloudinary-go/v2/api/uploader"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo/options"
 
-"post-service/internal/cache"
-"post-service/internal/config"
-"post-service/internal/middleware"
-"post-service/pkg/utils"
-
-
+	"post-service/internal/cache"
+	"post-service/internal/config"
+	"post-service/internal/middleware"
+	"post-service/pkg/utils"
 )
+
 type Location struct {
 	Lat float64 `json:"lat"`
 	Lng float64 `json:"lng"`
 }
 type createPostRequest struct {
-Category    string      `json:"category"`
-Description string      `json:"description"`
-Location    interface{} `json:"location"`
-Images      []string    `json:"images"`
-Status      string      `json:"status,omitempty"`
+	Category    string      `json:"category"`
+	Description string      `json:"description"`
+	Location    interface{} `json:"location"`
+	Images      []string    `json:"images"`
+	Status      string      `json:"status,omitempty"`
 }
+
 func getCityFromLatLng(ctx context.Context, lat, lng float64) (string, error) {
 	url := fmt.Sprintf(
 		"https://nominatim.openstreetmap.org/reverse?lat=%f&lon=%f&format=json",
@@ -81,6 +81,7 @@ func getCityFromLatLng(ctx context.Context, lat, lng float64) (string, error) {
 
 	return "Unknown", nil
 }
+
 // ================= CREATE =================
 func CreatePost(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.GetUserID(r)
@@ -93,12 +94,11 @@ func CreatePost(w http.ResponseWriter, r *http.Request) {
 
 	if config.Cloudinary == nil || config.DB == nil {
 		utils.JSON(w, http.StatusInternalServerError, map[string]interface{}{
-			"status": "error",
+			"status":  "error",
 			"message": "Server not properly initialized",
 		})
 		return
 	}
-	
 
 	err := r.ParseMultipartForm(10 << 20)
 	if err != nil {
@@ -119,7 +119,7 @@ func CreatePost(w http.ResponseWriter, r *http.Request) {
 
 	if category == "" || description == "" || locationStr == "" || len(files) == 0 {
 		utils.JSON(w, http.StatusBadRequest, map[string]interface{}{
-			"status": "fail",
+			"status":  "fail",
 			"message": "category, description, location and images are required",
 		})
 		return
@@ -202,40 +202,40 @@ func CreatePost(w http.ResponseWriter, r *http.Request) {
 		"status": "success", "data": res.InsertedID,
 	})
 }
+
 // ================= GET =================
 func GetAllPosts(w http.ResponseWriter, r *http.Request) {
-var cached []bson.M
+	var cached []bson.M
 
-if err := cache.Get("posts", &cached); err == nil && len(cached) > 0 {
+	if err := cache.Get("posts", &cached); err == nil && len(cached) > 0 {
+		utils.JSON(w, http.StatusOK, map[string]interface{}{
+			"status": "success", "data": cached,
+		})
+		return
+	}
+
+	cursor, err := config.DB.Collection("posts").Find(context.Background(), bson.M{})
+	if err != nil {
+		utils.JSON(w, http.StatusInternalServerError, map[string]interface{}{
+			"status": "error", "message": "Failed to fetch posts",
+		})
+		return
+	}
+	defer cursor.Close(context.Background())
+
+	var posts []bson.M
+	if err := cursor.All(context.Background(), &posts); err != nil {
+		utils.JSON(w, http.StatusInternalServerError, map[string]interface{}{
+			"status": "error", "message": "Failed to parse posts",
+		})
+		return
+	}
+
+	_ = cache.Set("posts", posts, 30*time.Minute)
+
 	utils.JSON(w, http.StatusOK, map[string]interface{}{
-		"status": "success", "data": cached,
+		"status": "success", "data": posts,
 	})
-	return
-}
-
-cursor, err := config.DB.Collection("posts").Find(context.Background(), bson.M{})
-if err != nil {
-	utils.JSON(w, http.StatusInternalServerError, map[string]interface{}{
-		"status": "error", "message": "Failed to fetch posts",
-	})
-	return
-}
-defer cursor.Close(context.Background())
-
-var posts []bson.M
-if err := cursor.All(context.Background(), &posts); err != nil {
-	utils.JSON(w, http.StatusInternalServerError, map[string]interface{}{
-		"status": "error", "message": "Failed to parse posts",
-	})
-	return
-}
-
-_ = cache.Set("posts", posts, 30*time.Minute)
-
-utils.JSON(w, http.StatusOK, map[string]interface{}{
-	"status": "success", "data": posts,
-})
-
 
 }
 
@@ -317,130 +317,127 @@ func UpdatePost(w http.ResponseWriter, r *http.Request) {
 		"status": "success", "data": updated,
 	})
 }
+
 // ================= DELETE =================
 func DeletePost(w http.ResponseWriter, r *http.Request) {
-userID, ok := middleware.GetUserID(r)
-if !ok {
-utils.JSON(w, http.StatusUnauthorized, map[string]interface{}{
-"msg": "Unauthorized",
-})
-return
-}
+	userID, ok := middleware.GetUserID(r)
+	if !ok {
+		utils.JSON(w, http.StatusUnauthorized, map[string]interface{}{
+			"msg": "Unauthorized",
+		})
+		return
+	}
 
+	id := extractID(r)
+	objID, _ := primitive.ObjectIDFromHex(id)
 
-id := extractID(r)
-objID, _ := primitive.ObjectIDFromHex(id)
+	collection := config.DB.Collection("posts")
 
-collection := config.DB.Collection("posts")
+	var existing bson.M
+	if err := collection.FindOne(context.Background(), bson.M{"_id": objID}).Decode(&existing); err != nil {
+		utils.JSON(w, http.StatusNotFound, map[string]interface{}{
+			"msg": "Post not found",
+		})
+		return
+	}
 
-var existing bson.M
-if err := collection.FindOne(context.Background(), bson.M{"_id": objID}).Decode(&existing); err != nil {
-	utils.JSON(w, http.StatusNotFound, map[string]interface{}{
-		"msg": "Post not found",
+	if existing["user"].(primitive.ObjectID).Hex() != userID {
+		utils.JSON(w, http.StatusUnauthorized, map[string]interface{}{
+			"msg": "Unauthorized",
+		})
+		return
+	}
+
+	_, err := collection.DeleteOne(context.Background(), bson.M{"_id": objID})
+	if err != nil {
+		utils.JSON(w, http.StatusInternalServerError, map[string]interface{}{
+			"msg": "Delete failed",
+		})
+		return
+	}
+
+	cache.Delete("posts")
+	cache.Delete("dashboard:insights")
+
+	utils.JSON(w, http.StatusOK, map[string]interface{}{
+		"msg": "Post removed successfully",
 	})
-	return
-}
-
-if existing["user"].(primitive.ObjectID).Hex() != userID {
-	utils.JSON(w, http.StatusUnauthorized, map[string]interface{}{
-		"msg": "Unauthorized",
-	})
-	return
-}
-
-_, err := collection.DeleteOne(context.Background(), bson.M{"_id": objID})
-if err != nil {
-	utils.JSON(w, http.StatusInternalServerError, map[string]interface{}{
-		"msg": "Delete failed",
-	})
-	return
-}
-
-cache.Delete("posts")
-cache.Delete("dashboard:insights")
-
-utils.JSON(w, http.StatusOK, map[string]interface{}{
-	"msg": "Post removed successfully",
-})
-
 
 }
 
 // ================= LIKE =================
 func ToggleLike(w http.ResponseWriter, r *http.Request) {
-userID, ok := middleware.GetUserID(r)
-if !ok {
-utils.JSON(w, http.StatusUnauthorized, map[string]interface{}{
-"message": "Unauthorized",
-})
-return
-}
-
-
-id := extractID(r)
-objID, _ := primitive.ObjectIDFromHex(id)
-
-collection := config.DB.Collection("posts")
-
-var post bson.M
-if err := collection.FindOne(context.Background(), bson.M{"_id": objID}).Decode(&post); err != nil {
-	utils.JSON(w, http.StatusNotFound, map[string]interface{}{
-		"message": "Post not found",
-	})
-	return
-}
-
-likes, _ := post["likes"].([]interface{})
-already := false
-var updated []interface{}
-
-for _, l := range likes {
-	uid := l.(bson.M)["user"].(primitive.ObjectID).Hex()
-	if uid == userID {
-		already = true
-		continue
+	userID, ok := middleware.GetUserID(r)
+	if !ok {
+		utils.JSON(w, http.StatusUnauthorized, map[string]interface{}{
+			"message": "Unauthorized",
+		})
+		return
 	}
-	updated = append(updated, l)
-}
 
-if !already {
-	uid, _ := primitive.ObjectIDFromHex(userID)
-	updated = append(updated, bson.M{"user": uid})
-}
+	id := extractID(r)
+	objID, _ := primitive.ObjectIDFromHex(id)
 
-_, err := collection.UpdateOne(
-	context.Background(),
-	bson.M{"_id": objID},
-	bson.M{"$set": bson.M{"likes": updated}},
-)
+	collection := config.DB.Collection("posts")
 
-if err != nil {
-	utils.JSON(w, http.StatusInternalServerError, map[string]interface{}{
-		"message": "Update failed",
+	var post bson.M
+	if err := collection.FindOne(context.Background(), bson.M{"_id": objID}).Decode(&post); err != nil {
+		utils.JSON(w, http.StatusNotFound, map[string]interface{}{
+			"message": "Post not found",
+		})
+		return
+	}
+
+	likes, _ := post["likes"].([]interface{})
+	already := false
+	var updated []interface{}
+
+	for _, l := range likes {
+		uid := l.(bson.M)["user"].(primitive.ObjectID).Hex()
+		if uid == userID {
+			already = true
+			continue
+		}
+		updated = append(updated, l)
+	}
+
+	if !already {
+		uid, _ := primitive.ObjectIDFromHex(userID)
+		updated = append(updated, bson.M{"user": uid})
+	}
+
+	_, err := collection.UpdateOne(
+		context.Background(),
+		bson.M{"_id": objID},
+		bson.M{"$set": bson.M{"likes": updated}},
+	)
+
+	if err != nil {
+		utils.JSON(w, http.StatusInternalServerError, map[string]interface{}{
+			"message": "Update failed",
+		})
+		return
+	}
+
+	cache.Delete("posts")
+	cache.Delete("dashboard:insights")
+
+	utils.JSON(w, http.StatusOK, map[string]interface{}{
+		"status":     "success",
+		"liked":      !already,
+		"likesCount": len(updated),
 	})
-	return
-}
-
-cache.Delete("posts")
-cache.Delete("dashboard:insights")
-
-utils.JSON(w, http.StatusOK, map[string]interface{}{
-	"status":     "success",
-	"liked":      !already,
-	"likesCount": len(updated),
-})
-
 
 }
 
 // ================= HELPER =================
 func extractID(r *http.Request) string {
-path := strings.TrimPrefix(r.URL.Path, "/api/v1/posts/")
-return strings.Split(path, "/")[0]
+	path := strings.TrimPrefix(r.URL.Path, "/api/v1/posts/")
+	return strings.Split(path, "/")[0]
 }
 
 func GetPostAnalytics(w http.ResponseWriter, r *http.Request) {
-	
+
 	ctx := context.Background()
 	cacheKey := "posts:analytics"
 
@@ -454,7 +451,7 @@ func GetPostAnalytics(w http.ResponseWriter, r *http.Request) {
 	collection := config.DB.Collection("posts")
 
 	// ✅ 2. Aggregations
-	cityStats, _ := utils.Aggregate(collection, "$location.city")
+	cityStats, _ := utils.Aggregate(collection, "$city")
 	categoryStats, _ := utils.Aggregate(collection, "$category")
 	userStats, _ := utils.Aggregate(collection, "$user")
 

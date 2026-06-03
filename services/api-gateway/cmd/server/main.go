@@ -11,7 +11,6 @@ import (
 	"strings"
 )
 
-
 // ================= COOKIE HELPERS =================
 
 // remove specific attribute from Set-Cookie
@@ -28,7 +27,6 @@ func removeAttr(cookie, attr string) string {
 	return strings.Join(result, ";")
 }
 
-
 // ================= PROXY =================
 
 func newProxy(target string) *httputil.ReverseProxy {
@@ -42,15 +40,15 @@ func newProxy(target string) *httputil.ReverseProxy {
 	// 🔥 Fix cookies here
 	proxy.ModifyResponse = func(res *http.Response) error {
 		cookies := res.Header["Set-Cookie"]
-	
+
 		for i, c := range cookies {
-	
+
 			// remove domain only in dev
 			if os.Getenv("ENV") == "development" {
 				c = removeAttr(c, "Domain")
 				c = removeAttr(c, "Secure")
 			}
-	
+
 			// set proper SameSite
 			if !strings.Contains(strings.ToLower(c), "samesite") {
 				if os.Getenv("ENV") == "production" {
@@ -59,14 +57,14 @@ func newProxy(target string) *httputil.ReverseProxy {
 					c += "; SameSite=Lax"
 				}
 			}
-	
+
 			cookies[i] = c
 		}
-	
+
 		if len(cookies) > 0 {
 			res.Header["Set-Cookie"] = cookies
 		}
-	
+
 		return nil
 	}
 
@@ -79,7 +77,6 @@ func newProxy(target string) *httputil.ReverseProxy {
 
 	return proxy
 }
-
 
 // ================= MAIN =================
 
@@ -98,8 +95,8 @@ func main() {
 	// ✅ IMPORTANT: use trailing slash for proper routing
 	mux.Handle("/api/v1/users/", authProxy)
 	mux.Handle("/api/v1/posts", postProxy)
-mux.Handle("/api/v1/posts/", postProxy)
-mux.Handle("/api/v1/ai/", aiProxy)
+	mux.Handle("/api/v1/posts/", postProxy)
+	mux.Handle("/api/v1/ai/", aiProxy)
 
 	// health route
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
