@@ -12,13 +12,13 @@ func CORS(next http.Handler) http.Handler {
 
 		allowedOrigins := map[string]bool{
 			// 🔧 Local dev
-			"http://localhost:3000":  true,
-			"http://127.0.0.1:3000": true,
-
+			"http://localhost:3000":   true,
+			"http://127.0.0.1:3000":   true,
+			"http://16.176.1.86:3000": true,
 			// 🔥 Production (UPDATE THESE)
 			"https://peoplespost.vercel.app/": true,
-			"http://100.30.218.48:3000":  true,
-			"https://app.yoursite.com":   true,
+			"http://100.30.218.48:3000":       true,
+			"https://app.yoursite.com":        true,
 		}
 
 		w.Header().Set("Vary", "Origin")
