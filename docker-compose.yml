@@ -48,6 +48,6 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://gateway:4000/api/v1
+      - NEXT_PUBLIC_API_URL=http://16.176.1.86:4000/api/v1
     depends_on:
       - api-gateway
